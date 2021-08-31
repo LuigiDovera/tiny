@@ -23,46 +23,11 @@ static void cGen (TreeNode * tree);
 
 /* Procedure genStmt generates code at a statement node */
 static void genStmt( TreeNode * tree)
-{ TreeNode * p1, * p2, * p3, *curCase;
-  int savedLoc1,savedLoc2,currentLoc, jmpToNextLoc, lastPos;
+{ TreeNode * p1, * p2, * p3;
+  int savedLoc1,savedLoc2, savedLoc3, currentLoc;
   int loc;
   switch (tree->kind.stmt) {
-      case SwitchK :
-         if (TraceCode) emitComment("-> switch") ;
-         p1 = tree->child[0] ;
-         p2 = tree->child[1] ;
-         //get the variable
-         cGen(p1);
-         //generate Cases
-         cGen(p2);
-         break; /* switch_k */
-      case CaseK:
-         curCase = tree;
 
-         if (TraceCode) emitComment("-> ") ;
-         emitRM("LDA", ac1, 0, ac,"tentando colocar o valor de ac em ac1");
-         //loop que gera os cases
-         do{
-             p1 = curCase->child[0] ;
-             p2 = curCase->child[1] ;
-             /* get constant */
-
-             cGen(p1);
-
-             emitRO("SUB",ac,ac1,ac,"op ==") ;//subtrai AC de AC1
-             emitRM("JEQ",ac,1,pc,"br if true");//PULA O PROXIMO COMANDO SE O RESULTADO FOR 0
-             jmpToNextLoc = emitSkip(1);//pula 1 linha pra deixar espaço pro jmp que leva pro proximo case
-
-             cGen(p2);//gera os statements
-             lastPos = emitSkip(0);//salva ultima posição
-             emitBackup(jmpToNextLoc);//volta pra local do jmp pro proximo case
-             emitRM("LDA",pc,(lastPos - jmpToNextLoc),pc,"unconditional jmp");//pula pra posição do proximo case
-             emitRestore();
-
-             curCase = curCase->sibling;
-         }while(curCase!=NULL);
-
-         break; /* switch_k */
       case IfK :
          if (TraceCode) emitComment("-> if") ;
          p1 = tree->child[0] ;
@@ -103,6 +68,42 @@ static void genStmt( TreeNode * tree)
          if (TraceCode)  emitComment("<- repeat") ;
          break; /* repeat */
 
+      case WhileK:
+         if (TraceCode) emitComment("-> while") ;
+         p1 = tree->child[0] ;
+         p2 = tree->child[1] ;
+         savedLoc3 = emitSkip(0);
+         emitComment("while: jump after body comes back here");
+         /* generate code for test expression */
+         cGen(p1);
+         savedLoc1 = emitSkip(1) ;
+         emitComment("while: jump to jump to end belongs here");
+         /* recurse on then part */
+         cGen(p2);
+
+         //emitRM_Abs("JEQ",ac,savedLoc3,"repeat: jmp back to body");
+         emitRM_Abs("LDA",pc,savedLoc3,"jmp to test") ;
+
+         savedLoc2 = emitSkip(1) ;
+         //emitComment("if: jump to end belongs here");
+         currentLoc = emitSkip(0) ;
+         emitBackup(savedLoc1) ;
+         emitRM_Abs("JEQ",ac,currentLoc,"while: jmp to jmp to end");
+         emitRestore() ;
+         /* recurse on else part */
+         //cGen(p3);
+
+         currentLoc = emitSkip(0) ;
+         emitBackup(savedLoc2) ;
+         emitRM_Abs("LDA",pc,currentLoc,"jmp to end") ;
+         emitRestore() ;
+         if (TraceCode)  emitComment("<- while") ;
+         
+
+
+
+         break; /* while */
+
       case AssignK:
          if (TraceCode) emitComment("-> assign") ;
          /* generate code for rhs */
@@ -141,7 +142,7 @@ static void genExp( TreeNode * tree)
       emitRM("LDC",ac,tree->attr.val,0,"load const");
       if (TraceCode)  emitComment("<- Const") ;
       break; /* ConstK */
-
+    
     case IdK :
       if (TraceCode) emitComment("-> Id") ;
       loc = st_lookup(tree->attr.name);
@@ -245,4 +246,3 @@ void codeGen(TreeNode * syntaxTree, char * codefile)
    emitComment("End of execution.");
    emitRO("HALT",0,0,0,"");
 }
-

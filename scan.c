@@ -56,9 +56,9 @@ static struct
     { char* str;
       TokenType tok;
     } reservedWords[MAXRESERVED]
-   = {{"if",IF},{"then",THEN},{"else",ELSE},{"end",END},
+   = {{"if",IF},{"then",THEN},{"else",ELSE},{"endif",ENDIF},
       {"repeat",REPEAT},{"until",UNTIL},{"read",READ},
-      {"write",WRITE}};
+      {"write",WRITE}, {"while", WHILE}, {"do", DO}, {"endwhile", ENDWHILE}};
 
 /* lookup an identifier to see if it is a reserved word */
 /* uses linear search */
@@ -73,7 +73,7 @@ static TokenType reservedLookup (char * s)
 /****************************************/
 /* the primary function of the scanner  */
 /****************************************/
-/* function getToken returns the
+/* function getToken returns the 
  * next token in source file
  */
 TokenType getToken(void)
@@ -158,7 +158,7 @@ TokenType getToken(void)
          { /* backup in the input */
            ungetNextChar();
            save = FALSE;
-           currentToken = DDOT;
+           currentToken = ERROR;
          }
          break;
        case INNUM:
@@ -171,7 +171,7 @@ TokenType getToken(void)
          }
          break;
        case INID:
-         if (!isalpha(c))
+         if (!isalpha(c) && !isdigit(c) && c != '_')
          { /* backup in the input */
            ungetNextChar();
            save = FALSE;
@@ -200,3 +200,4 @@ TokenType getToken(void)
    }
    return currentToken;
 } /* end getToken */
+

@@ -17,6 +17,7 @@ static TreeNode * stmt_sequence(void);
 static TreeNode * statement(void);
 static TreeNode * if_stmt(void);
 static TreeNode * repeat_stmt(void);
+static TreeNode * while_stmt(void);
 static TreeNode * assign_stmt(void);
 static TreeNode * read_stmt(void);
 static TreeNode * write_stmt(void);
@@ -34,7 +35,7 @@ static void syntaxError(char * message)
 static void match(TokenType expected)
 { if (token == expected) token = getToken();
   else {
-    syntaxError("Unexpected token -> ");
+    syntaxError("unexpected token -> ");
     printToken(token,tokenString);
     fprintf(listing,"      ");
   }
@@ -43,8 +44,8 @@ static void match(TokenType expected)
 TreeNode * stmt_sequence(void)
 { TreeNode * t = statement();
   TreeNode * p = t;
-  while ((token!=ENDFILE) && (token!=END) &&
-         (token!=ELSE) && (token!=UNTIL) && (token!=CASE) && (token!=ENDSWITCH))
+  while ((token!=ENDFILE) && (token!=ENDIF) &&
+         (token!=ELSE) && (token!=UNTIL) && (token!=ENDWHILE))
   { TreeNode * q;
     match(SEMI);
     q = statement();
@@ -64,10 +65,11 @@ TreeNode * statement(void)
   switch (token) {
     case IF : t = if_stmt(); break;
     case REPEAT : t = repeat_stmt(); break;
+    case WHILE : t = while_stmt(); break;
     case ID : t = assign_stmt(); break;
     case READ : t = read_stmt(); break;
     case WRITE : t = write_stmt(); break;
-    default : syntaxError("Unexpected token -> ");
+    default : syntaxError("unexpected token -> ");
               printToken(token,tokenString);
               token = getToken();
               break;
@@ -85,7 +87,7 @@ TreeNode * if_stmt(void)
     match(ELSE);
     if (t!=NULL) t->child[2] = stmt_sequence();
   }
-  match(END);
+  match(ENDIF);
   return t;
 }
 
@@ -95,6 +97,16 @@ TreeNode * repeat_stmt(void)
   if (t!=NULL) t->child[0] = stmt_sequence();
   match(UNTIL);
   if (t!=NULL) t->child[1] = exp();
+  return t;
+}
+
+TreeNode * while_stmt(void)
+{ TreeNode * t = newStmtNode(WhileK);
+  match(WHILE);
+  if (t!=NULL) t->child[0] = exp();
+  match(DO);
+  if (t!=NULL) t->child[1] = stmt_sequence();
+  match(ENDWHILE);
   return t;
 }
 
@@ -123,7 +135,6 @@ TreeNode * write_stmt(void)
   if (t!=NULL) t->child[0] = exp();
   return t;
 }
-
 
 TreeNode * exp(void)
 { TreeNode * t = simple_exp();
@@ -203,7 +214,7 @@ TreeNode * factor(void)
 /****************************************/
 /* the primary function of the parser   */
 /****************************************/
-/* Function parse returns the newly
+/* Function parse returns the newly 
  * constructed syntax tree
  */
 TreeNode * parse(void)
